@@ -114,8 +114,6 @@
 
 extern FILE *sim_log;
 
-#ifdef USE_NETWORK
-
 /* make common BSD code a bit easier to read in this file */
 /* OS/X seems to define and compile using one of these BSD types */
 #if defined(__NetBSD__) || defined (__OpenBSD__) || defined (__FreeBSD__)
@@ -1120,5 +1118,3 @@ t_stat eth_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
 
   return SCPE_OK;
 }
-
-#endif /* USE_NETWORK */
