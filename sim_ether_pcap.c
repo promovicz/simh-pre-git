@@ -383,6 +383,12 @@ int pcap_sendpacket(pcap_t* handle, const u_char* msg, int len)
 }
 #endif /* !HAS_PCAP_SENDPACKET */
 
+struct eth_pcap {
+    pcap_t *pcap;
+};
+
+typedef struct eth_pcap ETH_PCAP;
+
 #if defined (USE_READER_THREAD)
 #include <pthread.h>
 
@@ -424,12 +430,6 @@ struct timeval timeout;
   return NULL;
 }
 #endif
-
-struct eth_pcap {
-    pcap_t *pcap;
-};
-
-typedef struct eth_pcap ETH_PCAP;
 
 /*
      The libpcap provided API pcap_findalldevs() on most platforms, will 
