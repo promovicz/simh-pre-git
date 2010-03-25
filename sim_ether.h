@@ -55,50 +55,6 @@
 
 #include "sim_defs.h"
 
-/* make common BSD code a bit easier to read in this file */
-/* OS/X seems to define and compile using one of these BSD types */
-#if defined(__NetBSD__) || defined (__OpenBSD__) || defined (__FreeBSD__)
-#define xBSD 1
-#endif
-#if !defined(__FreeBSD__) && !defined(_WIN32) && !defined(VMS)
-#define USE_SETNONBLOCK 1
-#endif
-
-#if defined(__sun__) && defined(__i386__)
-#define USE_READER_THREAD 1
-#endif
-
-/* make common winpcap code a bit easier to read in this file */
-#if defined(_WIN32) || defined(VMS)
-#define PCAP_READ_TIMEOUT -1
-#else
-#define PCAP_READ_TIMEOUT  1
-#endif
-
-/* set related values to have correct relationships */
-#if defined (USE_READER_THREAD)
-#if defined (USE_SETNONBLOCK)
-#undef USE_SETNONBLOCK
-#endif
-#undef PCAP_READ_TIMEOUT
-#define PCAP_READ_TIMEOUT 15
-#if !defined (xBSD) && !defined(_WIN32) && !defined(VMS)
-#define MUST_DO_SELECT
-#endif
-#endif
-
-/*
-  USE_BPF is defined to let this code leverage the libpcap/OS kernel provided 
-  BPF packet filtering.  This generally will enhance performance.  It may not 
-  be available in some environments and/or it may not work correctly, so 
-  undefining this will still provide working code here.
-*/
-#define USE_BPF 1
-
-#if defined (USE_READER_THREAD)
-#include <pthread.h>
-#endif
-
 /* structure declarations */
 
 #define ETH_PROMISC            1                        /* promiscuous mode = true */
