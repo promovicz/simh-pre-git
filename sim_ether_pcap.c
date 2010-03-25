@@ -392,6 +392,7 @@ static void *
 _eth_reader(void *arg)
 {
 ETH_DEV* volatile dev = (ETH_DEV*)arg;
+ETH_PCAP* volatile devi = (ETH_PCAP*)dev->implementation;
 int status;
 struct timeval timeout;
 
@@ -400,22 +401,22 @@ struct timeval timeout;
 
   sim_debug(dev->dbit, dev->dptr, "Reader Thread Starting\n");
 
-  while (dev->handle) {
+  while (devi->pcap) {
 #if defined (MUST_DO_SELECT)
     int sel_ret;
 
     fd_set setl;
     FD_ZERO(&setl);
-    FD_SET(pcap_get_selectable_fd((pcap_t *)dev->handle), &setl);
-    sel_ret = select(1+pcap_get_selectable_fd((pcap_t *)dev->handle), &setl, NULL, NULL, &timeout);
+    FD_SET(pcap_get_selectable_fd((pcap_t *)devi->pcap), &setl);
+    sel_ret = select(1+pcap_get_selectable_fd((pcap_t *)devi->pcap), &setl, NULL, NULL, &timeout);
     if (sel_ret < 0 && errno != EINTR) break;
     if (sel_ret > 0) {
       /* dispatch read request queue available packets */
-      status = pcap_dispatch((pcap_t*)dev->handle, -1, &eth_callback, (u_char*)dev);
+      status = pcap_dispatch((pcap_t*)devi->pcap, -1, &eth_callback, (u_char*)dev);
     }
 #else
     /* dispatch read request queue available packets */
-    status = pcap_dispatch((pcap_t*)dev->handle, 1, &eth_callback, (u_char*)dev);
+    status = pcap_dispatch((pcap_t*)devi->pcap, 1, &eth_callback, (u_char*)dev);
 #endif
   }
 
@@ -423,6 +424,12 @@ struct timeval timeout;
   return NULL;
 }
 #endif
+
+struct eth_pcap {
+    pcap_t *pcap;
+};
+
+typedef struct eth_pcap ETH_PCAP;
 
 /*
      The libpcap provided API pcap_findalldevs() on most platforms, will 
@@ -630,6 +637,7 @@ void eth_zero(ETH_DEV* dev)
 
 t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
 {
+  ETH_PCAP* devi;
   const int bufsz = (BUFSIZ < ETH_MAX_PACKET) ? ETH_MAX_PACKET : BUFSIZ;
   char errbuf[PCAP_ERRBUF_SIZE];
   char temp[1024];
@@ -639,6 +647,10 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
 
   /* initialize device */
   eth_zero(dev);
+
+  /* allocate implementation structure */
+  devi = (ETH_PCAP*)malloc(sizeof(ETH_PCAP));
+  dev->implementation = devi;
 
   /* translate name of type "ethX" to real device name */
   if ((strlen(name) == 4)
@@ -664,8 +676,8 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
 
   /* attempt to connect device */
   memset(errbuf, 0, sizeof(errbuf));
-  dev->handle = (void*) pcap_open_live(savname, bufsz, ETH_PROMISC, PCAP_READ_TIMEOUT, errbuf);
-  if (!dev->handle) { /* can't open device */
+  devi->pcap = (void*) pcap_open_live(savname, bufsz, ETH_PROMISC, PCAP_READ_TIMEOUT, errbuf);
+  if (!devi->pcap) { /* can't open device */
     msg = "Eth: pcap_open_live error - %s\r\n";
     printf (msg, errbuf);
     if (sim_log) fprintf (sim_log, msg, errbuf);
@@ -689,7 +701,7 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
      This is required in order to fake the src address. */
   {
     int one = 1;
-    ioctl(pcap_fileno(dev->handle), BIOCSHDRCMPLT, &one);
+    ioctl(pcap_fileno(devi->pcap), BIOCSHDRCMPLT, &one);
   }
 #endif /* xBSD */
 
@@ -707,7 +719,7 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
 #else /* !defined (USE_READER_THREAD */
 #ifdef USE_SETNONBLOCK
   /* set ethernet device non-blocking so pcap_dispatch() doesn't hang */
-  if (pcap_setnonblock (dev->handle, 1, errbuf) == -1) {
+  if (pcap_setnonblock (devi->pcap, 1, errbuf) == -1) {
     msg = "Eth: Failed to set non-blocking: %s\r\n";
     printf (msg, errbuf);
     if (sim_log) fprintf (sim_log, msg, errbuf);
@@ -719,15 +731,19 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
 
 t_stat eth_close(ETH_DEV* dev)
 {
+  ETH_PCAP* devi;
   char* msg = "Eth: closed %s\r\n";
   pcap_t *pcap;
 
   /* make sure device exists */
   if (!dev) return SCPE_UNATT;
 
+  /* get implementation structure */
+  devi = (ETH_PCAP*)dev->implementation;
+
   /* close the device */
-  pcap = (pcap_t *)dev->handle;
-  dev->handle = NULL;
+  pcap = (pcap_t *)devi->pcap;
+  devi->pcap = NULL;
   pcap_close(pcap);
   printf (msg, dev->name);
   if (sim_log) fprintf (sim_log, msg, dev->name);
@@ -793,10 +809,14 @@ t_stat eth_reflect(ETH_DEV* dev, ETH_MAC mac)
 
 t_stat eth_write(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 {
+  ETH_PCAP* devi;
   int status = 1;   /* default to failure */
 
   /* make sure device exists */
   if (!dev) return SCPE_UNATT;
+
+  /* get implementation structure */
+  devi = (ETH_PCAP*)dev->implementation;
 
   /* make sure packet exists */
   if (!packet) return SCPE_ARG;
@@ -806,7 +826,7 @@ t_stat eth_write(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
     eth_packet_trace (dev, packet->msg, packet->len, "writing");
 
     /* dispatch write request (synchronous; no need to save write info to dev) */
-    status = pcap_sendpacket((pcap_t*)dev->handle, (u_char*)packet->msg, packet->len);
+    status = pcap_sendpacket((pcap_t*)devi->pcap, (u_char*)packet->msg, packet->len);
 
     /* detect sending of decnet loopback packet */
     if ((status == 0) && DECNET_SELF_FRAME(dev->decnet_addr, packet->msg)) 
@@ -897,10 +917,14 @@ void eth_callback(u_char* info, const struct pcap_pkthdr* header, const u_char* 
 t_stat eth_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 {
   int status;
+  ETH_PCAP* devi;
 
   /* make sure device exists */
 
   if (!dev) return SCPE_UNATT;
+
+  /* get implementation structure */
+  devi = (ETH_PCAP*)dev->implementation;
 
   /* make sure packet exists */
   if (!packet) return SCPE_ARG;
@@ -915,7 +939,7 @@ t_stat eth_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 
   /* dispatch read request to either receive a filtered packet or timeout */
   do {
-    status = pcap_dispatch((pcap_t*)dev->handle, 1, &eth_callback, (u_char*)dev);
+    status = pcap_dispatch((pcap_t*)devi->pcap, 1, &eth_callback, (u_char*)dev);
   } while ((status) && (0 == packet->len));
 
 #else /* USE_READER_THREAD */
@@ -939,6 +963,7 @@ t_stat eth_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 t_stat eth_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
                   ETH_BOOL all_multicast, ETH_BOOL promiscuous)
 {
+  ETH_PCAP* devi;
   int i;
   bpf_u_int32  bpf_subnet, bpf_netmask;
   char buf[110+66*ETH_FILTER_MAX];
@@ -953,6 +978,9 @@ t_stat eth_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
 
   /* make sure device exists */
   if (!dev) return SCPE_UNATT;
+
+  /* get implementation structure */
+  devi = (ETH_PCAP*)dev->implementation;
 
   /* filter count OK? */
   if ((addr_count < 0) || (addr_count > ETH_FILTER_MAX))
@@ -1051,14 +1079,15 @@ t_stat eth_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
 
 
   /* get netmask, which is required for compiling */
-  if (pcap_lookupnet(dev->handle, &bpf_subnet, &bpf_netmask, errbuf)<0) {
+  /* XXX: wrong signature. discovered during refactoring. */
+  if (pcap_lookupnet(devi->pcap, &bpf_subnet, &bpf_netmask, errbuf)<0) {
       bpf_netmask = 0;
   }
 
 #ifdef USE_BPF
   /* compile filter string */
-  if ((status = pcap_compile(dev->handle, &bpf, buf, 1, bpf_netmask)) < 0) {
-    sprintf(errbuf, "%s", pcap_geterr(dev->handle));
+  if ((status = pcap_compile(devi->pcap, &bpf, buf, 1, bpf_netmask)) < 0) {
+    sprintf(errbuf, "%s", pcap_geterr(devi->pcap));
     msg = "Eth: pcap_compile error: %s\r\n";
     printf(msg, errbuf);
     if (sim_log) fprintf (sim_log, msg, errbuf);
@@ -1068,15 +1097,15 @@ t_stat eth_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
     if (sim_log) fprintf (sim_log, msg, buf);
   } else {
     /* apply compiled filter string */
-    if ((status = pcap_setfilter(dev->handle, &bpf)) < 0) {
-      sprintf(errbuf, "%s", pcap_geterr(dev->handle));
+    if ((status = pcap_setfilter(devi->pcap, &bpf)) < 0) {
+      sprintf(errbuf, "%s", pcap_geterr(devi->pcap));
       msg = "Eth: pcap_setfilter error: %s\r\n";
       printf(msg, errbuf);
       if (sim_log) fprintf (sim_log, msg, errbuf);
     } else {
 #ifdef USE_SETNONBLOCK
       /* set file non-blocking */
-      status = pcap_setnonblock (dev->handle, 1, errbuf);
+      status = pcap_setnonblock (devi->pcap, 1, errbuf);
 #endif /* USE_SETNONBLOCK */
     }
     pcap_freecode(&bpf);

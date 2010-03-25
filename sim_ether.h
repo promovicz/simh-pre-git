@@ -111,7 +111,7 @@ typedef struct eth_item ETH_ITEM;
 
 struct eth_device {
   char*         name;                                   /* name of ethernet device */
-  void*         handle;                                 /* handle of implementation-specific device */
+  void*         implementation;                         /* handle of implementation-specific device */
   ETH_PCALLBACK read_callback;                          /* read callback function */
   ETH_PCALLBACK write_callback;                         /* write callback function */
   ETH_PACK*     read_packet;                            /* read packet */
