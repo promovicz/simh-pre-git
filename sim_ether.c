@@ -344,27 +344,6 @@ void eth_packet_trace(ETH_DEV* dev, const uint8 *msg, int len, char* txt)
 }
 
 
-t_stat eth_show (FILE* st, UNIT* uptr, int32 val, void* desc)
-{
-  ETH_LIST  list[ETH_MAX_DEVICE];
-  int number = eth_devices(ETH_MAX_DEVICE, list);
-
-  fprintf(st, "ETH devices:\n");
-  if (number == -1)
-    fprintf(st, "  network support not available in simulator\n");
-  else
-    if (number == 0)
-      fprintf(st, "  no network devices are available\n");
-    else {
-      int i, min, len;
-      for (i=0, min=0; i<number; i++)
-        if ((len = strlen(list[i].name)) > min) min = len;
-      for (i=0; i<number; i++)
-        fprintf(st,"  %d  %-*s (%s)\n", i, min, list[i].name, list[i].desc);
-    }
-  return SCPE_OK;
-}
-
 t_stat ethq_init(ETH_QUE* que, int max)
 {
   /* create dynamic queue if it does not exist */

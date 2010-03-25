@@ -143,12 +143,10 @@ t_stat eth_filter (ETH_DEV* dev, int addr_count,        /* set filter on incomin
                    ETH_MAC* addresses,
                    ETH_BOOL all_multicast,
                    ETH_BOOL promiscuous);
-int eth_devices   (int max, ETH_LIST* dev);             /* get ethernet devices on host */
+
 void eth_setcrc   (ETH_DEV* dev, int need_crc);         /* enable/disable CRC mode */
 
 void eth_packet_trace (ETH_DEV* dev, const uint8 *msg, int len, char* txt); /* trace ethernet packet */
-t_stat eth_show  (FILE* st, UNIT* uptr,                 /* show ethernet devices */
-                  int32 val, void* desc);
 
 void eth_add_crc32(ETH_PACK* packet);                   /* compute and insert checksum */
 

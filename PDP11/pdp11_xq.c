@@ -339,8 +339,6 @@ MTAB xq_mod[] = {
 		NULL, &show_vec, NULL },
   { MTAB_XTD | MTAB_VDV, 0, "MAC", "MAC=xx:xx:xx:xx:xx:xx",
     &xq_setmac, &xq_showmac, NULL },
-  { MTAB_XTD | MTAB_VDV | MTAB_NMO, 0, "ETH", "ETH",
-    NULL, &eth_show, NULL },
   { MTAB_XTD | MTAB_VDV | MTAB_NMO, 0, "FILTERS", "FILTERS",
     NULL, &xq_show_filters, NULL },
   { MTAB_XTD | MTAB_VDV | MTAB_NMO, 0, "STATS", "STATS",
@@ -1883,7 +1881,6 @@ t_stat xq_attach(UNIT* uptr, char* cptr)
   /* runtime selection of ethernet port? */
   if (*cptr == '?') {                                       /* I/O style derived from main() */
     memset (buffer, 0, sizeof(buffer));                     /* clear read buffer */
-    eth_show (stdout, uptr, 0, NULL);                       /* show ETH devices */
     printf ("Select device (ethX or <device_name>)? ");     /* prompt for device */
     cptr = read_line (buffer, sizeof(buffer), stdin);       /* read command line */
     if (cptr == NULL) return SCPE_ARG;                      /* ignore EOF */

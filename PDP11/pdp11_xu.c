@@ -139,8 +139,6 @@ MTAB xu_mod[] = {
 		NULL, &show_vec, NULL },
   { MTAB_XTD | MTAB_VDV, 0, "MAC", "MAC=xx:xx:xx:xx:xx:xx",
     &xu_setmac, &xu_showmac, NULL },
-  { MTAB_XTD | MTAB_VDV | MTAB_NMO, 0, "ETH", "ETH",
-    NULL, &eth_show, NULL },
   { MTAB_XTD | MTAB_VDV | MTAB_NMO, 0, "STATS", "STATS",
     &xu_set_stats, &xu_show_stats, NULL },
   { MTAB_XTD | MTAB_VDV, 0, "TYPE", "TYPE={DEUNA|DELUA}",
