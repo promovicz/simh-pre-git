@@ -429,11 +429,12 @@ void ethq_insert(ETH_QUE* que, int32 type, ETH_PACK* pack, int32 status)
   item->packet.status = status;
 }
 
+#if !defined (USE_NETWORK) && !defined(USE_SHARED)
+
 /*============================================================================*/
 /*                        Non-implemented versions                            */
 /*============================================================================*/
 
-#if !defined (USE_NETWORK) && !defined(USE_SHARED)
 t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
   {return SCPE_NOFNC;}
 t_stat eth_close (ETH_DEV* dev)
@@ -445,8 +446,43 @@ t_stat eth_read (ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 t_stat eth_filter (ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
                    ETH_BOOL all_multicast, ETH_BOOL promiscuous)
   {return SCPE_NOFNC;}
-int eth_devices (int max, ETH_LIST* dev)
-  {return -1;}
 #else       /* endif unimplemented */
+
+/*============================================================================*/
+/*                             Implementation                                 */
+/*============================================================================*/
+#if 0
+t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
+{
+    if(!strncmp(name, "pcap:", 5)) {
+        return eth_pcap_open(dev, name, dptr, dbit);
+    }/* else if(!strcmp(name, "tap:", 4)) {
+        return eth_tap_open(dev, name, dptr, dbit);
+    } else if(!strcmp(name, "vde:", 4)) {
+        return eth_vde_open(dev, name, dptr, dbit);
+    }*/ else {
+        return eth_pcap_open(dev, name, dptr, dbit);
+    }
+
+    return SCPE_NOFNC;
+}
+t_stat eth_close (ETH_DEV* dev)
+{
+      return SCPE_NOFNC;
+}
+t_stat eth_write (ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
+{
+    return SCPE_NOFNC;
+}
+t_stat eth_read (ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
+{
+    return SCPE_NOFNC;
+}
+t_stat eth_filter (ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
+                   ETH_BOOL all_multicast, ETH_BOOL promiscuous)
+{
+    return SCPE_NOFNC;
+}
+#endif
 
 #endif /* USE_NETWORK */
