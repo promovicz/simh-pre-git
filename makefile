@@ -33,7 +33,7 @@ endif
 #
 BIN = BIN/
 SIM = scp.c sim_console.c sim_fio.c sim_timer.c sim_sock.c \
-	sim_tmxr.c sim_ether.c sim_tape.c
+	sim_tmxr.c sim_ether.c sim_ether_pcap.c sim_tape.c
 
 
 #
