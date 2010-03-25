@@ -164,7 +164,7 @@
 extern FILE *sim_log;
 
 /*============================================================================*/
-/*                  OS-independant ethernet routines                          */
+/*                         MAC print and scan                                 */
 /*============================================================================*/
 
 t_stat eth_mac_scan (ETH_MAC* mac, char* strmac)
@@ -218,6 +218,10 @@ void eth_mac_fmt(ETH_MAC* mac, char* buff)
   sprintf(buff, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
   return;
 }
+
+/*============================================================================*/
+/*                            CRC computation                                 */
+/*============================================================================*/
 
 static const uint32 crcTable[256] = {
   0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F,
@@ -294,6 +298,10 @@ void eth_setcrc(ETH_DEV* dev, int need_crc)
   dev->need_crc = need_crc;
 }
 
+/*============================================================================*/
+/*                             Debug printing                                 */
+/*============================================================================*/
+
 void eth_packet_trace_ex(ETH_DEV* dev, const uint8 *msg, int len, char* txt, int dmp)
 {
   if (dev->dptr->dctrl & dev->dbit) {
@@ -343,6 +351,9 @@ void eth_packet_trace(ETH_DEV* dev, const uint8 *msg, int len, char* txt)
   eth_packet_trace_ex(dev, msg, len, txt, 1/*len > ETH_MAX_PACKET*/);
 }
 
+/*============================================================================*/
+/*                          Queue implementation                              */
+/*============================================================================*/
 
 t_stat ethq_init(ETH_QUE* que, int max)
 {
