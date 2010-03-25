@@ -199,6 +199,8 @@ void eth_packet_trace (ETH_DEV* dev, const uint8 *msg, int len, char* txt); /* t
 t_stat eth_show  (FILE* st, UNIT* uptr,                 /* show ethernet devices */
                   int32 val, void* desc);
 
+void eth_add_crc32(ETH_PACK* packet);                   /* compute and insert checksum */
+
 void eth_mac_fmt      (ETH_MAC* add, char* buffer);     /* format ethernet mac address */
 t_stat eth_mac_scan (ETH_MAC* mac, char* strmac);       /* scan string for mac, put in mac */
 

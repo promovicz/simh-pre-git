@@ -344,13 +344,6 @@ void eth_packet_trace(ETH_DEV* dev, const uint8 *msg, int len, char* txt)
 }
 
 
-void eth_zero(ETH_DEV* dev)
-{
-  /* set all members to NULL OR 0 */
-  memset(dev, 0, sizeof(ETH_DEV));
-  dev->reflections = -1;                          /* not established yet */
-}
-
 t_stat eth_show (FILE* st, UNIT* uptr, int32 val, void* desc)
 {
   ETH_LIST  list[ETH_MAX_DEVICE];
