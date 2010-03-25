@@ -385,6 +385,11 @@ int pcap_sendpacket(pcap_t* handle, const u_char* msg, int len)
 
 struct eth_pcap {
     pcap_t *pcap;
+#if defined (USE_READER_THREAD)
+  ETH_QUE       read_queue;
+  pthread_mutex_t     lock;
+  pthread_t     reader_thread;                          /* Reader Thread Id */
+#endif
 };
 
 typedef struct eth_pcap ETH_PCAP;
@@ -709,11 +714,11 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
   {
   pthread_attr_t attr;
 
-  ethq_init (&dev->read_queue, 200);         /* initialize FIFO queue */
-  pthread_mutex_init (&dev->lock, NULL);
+  ethq_init (&devi->read_queue, 200);         /* initialize FIFO queue */
+  pthread_mutex_init (&devi->lock, NULL);
   pthread_attr_init(&attr);
   pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
-  pthread_create (&dev->reader_thread, &attr, _eth_reader, (void *)dev);
+  pthread_create (&devi->reader_thread, &attr, _eth_reader, (void *)dev);
   pthread_attr_destroy(&attr);
   }
 #else /* !defined (USE_READER_THREAD */
@@ -749,7 +754,7 @@ t_stat eth_close(ETH_DEV* dev)
   if (sim_log) fprintf (sim_log, msg, dev->name);
 
 #if defined (USE_READER_THREAD)
-  pthread_join (dev->reader_thread, NULL);
+  pthread_join (devi->reader_thread, NULL);
 #endif
 
   /* clean up the mess */
@@ -844,6 +849,7 @@ t_stat eth_write(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 void eth_callback(u_char* info, const struct pcap_pkthdr* header, const u_char* data)
 {
   ETH_DEV*  dev = (ETH_DEV*) info;
+  ETH_PCAP* devi = (ETH_PCAP*)dev->implementation;
 #ifdef USE_BPF
   int to_me = 1;
 #else /* !USE_BPF */
@@ -895,9 +901,9 @@ void eth_callback(u_char* info, const struct pcap_pkthdr* header, const u_char* 
 
     eth_packet_trace (dev, tmp_packet.msg, tmp_packet.len, "rcvqd");
 
-    pthread_mutex_lock (&dev->lock);
-    ethq_insert(&dev->read_queue, 2, &tmp_packet, 0);
-    pthread_mutex_unlock (&dev->lock);
+    pthread_mutex_lock (&devi->lock);
+    ethq_insert(&devi->read_queue, 2, &tmp_packet, 0);
+    pthread_mutex_unlock (&devi->lock);
 #else
     /* set data in passed read packet */
     dev->read_packet->len = header->len;
@@ -945,16 +951,16 @@ t_stat eth_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 #else /* USE_READER_THREAD */
 
     status = 0;
-    pthread_mutex_lock (&dev->lock);
-    if (dev->read_queue.count > 0) {
-      ETH_ITEM* item = &dev->read_queue.item[dev->read_queue.head];
+    pthread_mutex_lock (&devi->lock);
+    if (devi->read_queue.count > 0) {
+      ETH_ITEM* item = &devi->read_queue.item[devi->read_queue.head];
       packet->len = item->packet.len;
       memcpy(packet->msg, item->packet.msg, packet->len);
       if (routine)
           routine(status);
-      ethq_remove(&dev->read_queue);
+      ethq_remove(&devi->read_queue);
     }
-    pthread_mutex_unlock (&dev->lock);  
+    pthread_mutex_unlock (&devi->lock);  
 #endif
 
   return SCPE_OK;

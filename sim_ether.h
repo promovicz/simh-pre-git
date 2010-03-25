@@ -126,11 +126,6 @@ struct eth_device {
   uint32        dbit;                                   /* debugging bit */
   int           reflections;                            /* packet reflections on interface */
   int           need_crc;                               /* device needs CRC (Cyclic Redundancy Check) */
-#if defined (USE_READER_THREAD)
-  ETH_QUE       read_queue;
-  pthread_mutex_t     lock;
-  pthread_t     reader_thread;                          /* Reader Thread Id */
-#endif
 };
 
 typedef struct eth_device  ETH_DEV;
