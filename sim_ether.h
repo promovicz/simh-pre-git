@@ -109,6 +109,8 @@ typedef struct eth_list ETH_LIST;
 typedef struct eth_queue ETH_QUE;
 typedef struct eth_item ETH_ITEM;
 
+typedef struct eth_device  ETH_DEV;
+
 struct eth_device {
   char*         name;                                   /* name of ethernet device */
   void*         implementation;                         /* handle of implementation-specific device */
@@ -126,9 +128,17 @@ struct eth_device {
   uint32        dbit;                                   /* debugging bit */
   int           reflections;                            /* packet reflections on interface */
   int           need_crc;                               /* device needs CRC (Cyclic Redundancy Check) */
-};
 
-typedef struct eth_device  ETH_DEV;
+  t_stat (*cb_close) (ETH_DEV* dev);
+  t_stat (*cb_write) (ETH_DEV* dev, ETH_PACK* packet,
+                      ETH_PCALLBACK routine);
+  t_stat (*cb_read) (ETH_DEV* dev, ETH_PACK* packet,
+                     ETH_PCALLBACK routine);
+  t_stat (*cb_filter) (ETH_DEV* dev, int addr_count,
+                       ETH_MAC* addresses,
+                       ETH_BOOL all_multicast,
+                       ETH_BOOL promiscuous);
+};
 
 /* prototype declarations*/
 
@@ -158,6 +168,9 @@ void ethq_clear  (ETH_QUE* que);                        /* clear FIFO queue */
 void ethq_remove (ETH_QUE* que);                        /* remove item from FIFO queue */
 void ethq_insert (ETH_QUE* que, int32 type,             /* insert item into FIFO queue */
                   ETH_PACK* packet, int32 status);
+
+t_stat eth_pcap_open   (ETH_DEV* dev, char* name,       /* open ethernet interface using pcap */
+                        DEVICE* dptr, uint32 dbit);
 
 
 #endif                                                  /* _SIM_ETHER_H */

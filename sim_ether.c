@@ -451,38 +451,58 @@ t_stat eth_filter (ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
 /*============================================================================*/
 /*                             Implementation                                 */
 /*============================================================================*/
-#if 0
+void eth_zero(ETH_DEV* dev)
+{
+  /* set all members to NULL OR 0 */
+  memset(dev, 0, sizeof(ETH_DEV));
+  dev->reflections = -1;                          /* not established yet */
+}
+
 t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
 {
+    /* initialize device */
+    eth_zero(dev);
+
+    /* call implementation */
     if(!strncmp(name, "pcap:", 5)) {
-        return eth_pcap_open(dev, name, dptr, dbit);
+        return eth_pcap_open(dev, name + 5, dptr, dbit);
     }/* else if(!strcmp(name, "tap:", 4)) {
-        return eth_tap_open(dev, name, dptr, dbit);
+        return eth_tap_open(dev, name + 4, dptr, dbit);
     } else if(!strcmp(name, "vde:", 4)) {
-        return eth_vde_open(dev, name, dptr, dbit);
+        return eth_vde_open(dev, name + 4, dptr, dbit);
     }*/ else {
         return eth_pcap_open(dev, name, dptr, dbit);
     }
 
     return SCPE_NOFNC;
 }
+
 t_stat eth_close (ETH_DEV* dev)
 {
-      return SCPE_NOFNC;
+    /* call implementation */
+    dev->cb_close(dev);
+
+    /* clean up the mess */
+    free(dev->name); // XXX alloc in impl
+    eth_zero(dev);
+
+    return SCPE_OK;
 }
+
 t_stat eth_write (ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 {
-    return SCPE_NOFNC;
+    return dev->cb_write(dev, packet, routine);
 }
+
 t_stat eth_read (ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 {
-    return SCPE_NOFNC;
+    return dev->cb_read(dev, packet, routine);
 }
+
 t_stat eth_filter (ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
                    ETH_BOOL all_multicast, ETH_BOOL promiscuous)
 {
-    return SCPE_NOFNC;
+    return dev->cb_filter(dev, addr_count, addresses, all_multicast, promiscuous);
 }
-#endif
 
 #endif /* USE_NETWORK */

@@ -176,6 +176,10 @@ extern FILE *sim_log;
 #include <winreg.h>
 #endif
 
+/*============================================================================*/
+/*                          Windows pcap loading                              */
+/*============================================================================*/
+
 #if defined(_WIN32) && defined(USE_SHARED)
 /* Dynamic DLL loading technique and modified source comes from
    Etherial/WireShark capture_pcap.c */
@@ -357,6 +361,10 @@ int pcap_setfilter(pcap_t* a, struct bpf_program* b) {
 }
 #endif
 
+/*============================================================================*/
+/*                      Deal with sendpacket presence                         */
+/*============================================================================*/
+
 /* Some platforms have always had pcap_sendpacket */
 #if defined(_WIN32) || defined(VMS)
 #define HAS_PCAP_SENDPACKET 1
@@ -381,6 +389,10 @@ int pcap_sendpacket(pcap_t* handle, const u_char* msg, int len)
 }
 #endif /* !HAS_PCAP_SENDPACKET */
 
+/*============================================================================*/
+/*                          Internal structures                               */
+/*============================================================================*/
+
 struct eth_pcap {
     pcap_t *pcap;
 #if defined (USE_READER_THREAD)
@@ -391,6 +403,10 @@ struct eth_pcap {
 };
 
 typedef struct eth_pcap ETH_PCAP;
+
+/*============================================================================*/
+/*                             Reader thread                                  */
+/*============================================================================*/
 
 #if defined (USE_READER_THREAD)
 #include <pthread.h>
@@ -433,6 +449,10 @@ struct timeval timeout;
   return NULL;
 }
 #endif
+
+/*============================================================================*/
+/*                        Device listing and finding                          */
+/*============================================================================*/
 
 /*
      The libpcap provided API pcap_findalldevs() on most platforms, will 
@@ -631,15 +651,20 @@ char* eth_getname_byname(char* name, char* temp)
   }
 }
 
-void eth_zero(ETH_DEV* dev)
-{
-  /* set all members to NULL OR 0 */
-  memset(dev, 0, sizeof(ETH_DEV));
-  dev->reflections = -1;                          /* not established yet */
-}
+/*============================================================================*/
+/*                             Implementation                                 */
+/*============================================================================*/
 
-t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
+t_stat eth_pcap_close(ETH_DEV* dev);
+t_stat eth_pcap_write(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine);
+t_stat eth_pcap_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine);
+t_stat eth_pcap_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
+                       ETH_BOOL all_multicast, ETH_BOOL promiscuous);
+
+t_stat eth_pcap_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
 {
+    dbit = 1;
+
   ETH_PCAP* devi;
   const int bufsz = (BUFSIZ < ETH_MAX_PACKET) ? ETH_MAX_PACKET : BUFSIZ;
   char errbuf[PCAP_ERRBUF_SIZE];
@@ -648,12 +673,16 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
   int   num;
   char* msg;
 
-  /* initialize device */
-  eth_zero(dev);
+  /* fill in callbacks */
+  dev->cb_close = &eth_pcap_close;
+  dev->cb_write = &eth_pcap_write;
+  dev->cb_read = &eth_pcap_read;
+  dev->cb_filter = &eth_pcap_filter;
 
   /* allocate implementation structure */
   devi = (ETH_PCAP*)malloc(sizeof(ETH_PCAP));
   dev->implementation = devi;
+  memset(dev, 0, sizeof(ETH_PCAP));
 
   /* translate name of type "ethX" to real device name */
   if ((strlen(name) == 4)
@@ -732,7 +761,7 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
   return SCPE_OK;
 }
 
-t_stat eth_close(ETH_DEV* dev)
+t_stat eth_pcap_close(ETH_DEV* dev)
 {
   ETH_PCAP* devi;
   char* msg = "Eth: closed %s\r\n";
@@ -754,10 +783,6 @@ t_stat eth_close(ETH_DEV* dev)
 #if defined (USE_READER_THREAD)
   pthread_join (devi->reader_thread, NULL);
 #endif
-
-  /* clean up the mess */
-  free(dev->name);
-  eth_zero(dev);
 
   return SCPE_OK;
 }
@@ -801,7 +826,7 @@ t_stat eth_reflect(ETH_DEV* dev, ETH_MAC mac)
   /* empty the read queue and count the reflections */
   do {
     memset (&recv, 0, sizeof(ETH_PACK));
-    status = eth_read (dev, &recv, NULL);
+    status = eth_pcap_read (dev, &recv, NULL);
     if (memcmp(send.msg, recv.msg, ETH_MIN_PACKET)== 0)
       dev->reflections++;
   } while (recv.len > 0);
@@ -810,7 +835,7 @@ t_stat eth_reflect(ETH_DEV* dev, ETH_MAC mac)
   return dev->reflections;
 }
 
-t_stat eth_write(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
+t_stat eth_pcap_write(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 {
   ETH_PCAP* devi;
   int status = 1;   /* default to failure */
@@ -918,7 +943,7 @@ void eth_callback(u_char* info, const struct pcap_pkthdr* header, const u_char* 
   }
 }
 
-t_stat eth_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
+t_stat eth_pcap_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
 {
   int status;
   ETH_PCAP* devi;
@@ -964,7 +989,7 @@ t_stat eth_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
   return SCPE_OK;
 }
 
-t_stat eth_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
+t_stat eth_pcap_filter(ETH_DEV* dev, int addr_count, ETH_MAC* addresses,
                   ETH_BOOL all_multicast, ETH_BOOL promiscuous)
 {
   ETH_PCAP* devi;
