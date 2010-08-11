@@ -172,5 +172,8 @@ void ethq_insert (ETH_QUE* que, int32 type,             /* insert item into FIFO
 t_stat eth_pcap_open   (ETH_DEV* dev, char* name,       /* open ethernet interface using pcap */
                         DEVICE* dptr, uint32 dbit);
 
+t_stat eth_vde_open   (ETH_DEV* dev, char* name,       /* open ethernet interface using vde */
+                        DEVICE* dptr, uint32 dbit);
+
 
 #endif                                                  /* _SIM_ETHER_H */

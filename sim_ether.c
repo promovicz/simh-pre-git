@@ -466,11 +466,13 @@ t_stat eth_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
     /* call implementation */
     if(!strncmp(name, "pcap:", 5)) {
         return eth_pcap_open(dev, name + 5, dptr, dbit);
-    }/* else if(!strcmp(name, "tap:", 4)) {
-        return eth_tap_open(dev, name + 4, dptr, dbit);
-    } else if(!strcmp(name, "vde:", 4)) {
+    }
+	/* else if(!strcmp(name, "tap:", 4)) {
+	   return eth_tap_open(dev, name + 4, dptr, dbit);
+	   } */
+	else if(!strncmp(name, "vde:", 4)) {
         return eth_vde_open(dev, name + 4, dptr, dbit);
-    }*/ else {
+    } else {
         return eth_pcap_open(dev, name, dptr, dbit);
     }
 
