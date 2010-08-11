@@ -682,7 +682,7 @@ t_stat eth_pcap_open(ETH_DEV* dev, char* name, DEVICE* dptr, uint32 dbit)
   /* allocate implementation structure */
   devi = (ETH_PCAP*)malloc(sizeof(ETH_PCAP));
   dev->implementation = devi;
-  memset(dev, 0, sizeof(ETH_PCAP));
+  memset(devi, 0, sizeof(ETH_PCAP));
 
   /* translate name of type "ethX" to real device name */
   if ((strlen(name) == 4)
